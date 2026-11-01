@@ -1,0 +1,47 @@
+# dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+
+# environment
+.env
+.env.*
+!.env.example
+server/.env
+server/.env.*
+!server/.env.example
+client/.env
+client/.env.*
+!client/.env.example
+
+# database
+server/data/*
+!server/data/README.md
+uploads/
+qr-export/
+*.sqlite
+*.sqlite-journal
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# test coverage
+coverage/
+
+# Prisma generated client (if output is customized)
+server/src/generated/

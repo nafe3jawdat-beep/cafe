@@ -1,0 +1,17 @@
+{
+  "name": "Brillo Cafe Ordering",
+  "short_name": "Brillo Cafe",
+  "description": "Order from your table and call staff in one tap.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf5ec",
+  "theme_color": "#faf5ec",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

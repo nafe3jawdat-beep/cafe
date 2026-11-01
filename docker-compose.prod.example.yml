@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cafe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD before running this file.}
+      POSTGRES_DB: ${POSTGRES_DB:-cafe_qr}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - cafe_qr_prod_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-cafe} -d ${POSTGRES_DB:-cafe_qr}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+# Backups are required for any production deployment. Store the database outside the
+# container or snapshot the volume regularly.
+volumes:
+  cafe_qr_prod_pgdata:

@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  WAITER
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum CallType {
+  WAITER
+  WATER
+  CLEAN_TABLE
+  OTHER
+}
+
+enum CallStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum BillStatus {
+  OPEN
+  SETTLED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(WAITER)
+  active       Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  resolvedCalls StaffCall[]  @relation("CallResolvedBy")
+  settledBills  BillRequest[] @relation("BillSettledBy")
+}
+
+model DiningTable {
+  id        String   @id @default(cuid())
+  number    Int      @unique
+  name      String?
+  qrToken   String   @unique @default(cuid())
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+  calls  StaffCall[]
+  bills  BillRequest[]
+
+  @@index([active])
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  sortOrder   Int        @default(0)
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  items       MenuItem[]
+
+  @@index([active, sortOrder])
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  slug        String   @unique
+  name        String
+  description String?
+  imageUrl    String?
+  priceCents  Int
+  available   Boolean  @default(true)
+  featured    Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  @@index([categoryId, available, sortOrder])
+  @@index([available])
+}
+
+model Order {
+  id                 String      @id @default(cuid())
+  orderNumber        Int         @unique @default(autoincrement())
+  clientRequestId    String?     @unique
+  tableId            String
+  table              DiningTable @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  status             OrderStatus @default(PENDING)
+  subtotalCents      Int
+  taxCents           Int         @default(0)
+  serviceChargeCents Int         @default(0)
+  totalCents         Int
+  note               String?
+  customerName       String?
+  billId             String?
+  bill               BillRequest? @relation(fields: [billId], references: [id], onDelete: SetNull)
+  items              OrderItem[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([tableId, status])
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([billId])
+}
+
+model OrderItem {
+  id             String    @id @default(cuid())
+  orderId        String
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId     String?
+  menuItem       MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  name           String
+  unitPriceCents Int
+  quantity       Int
+  notes          String?
+  lineTotalCents Int
+
+  @@index([orderId])
+}
+
+model StaffCall {
+  id             String     @id @default(cuid())
+  tableId        String
+  table          DiningTable @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  type           CallType
+  status         CallStatus @default(OPEN)
+  note           String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolvedBy     User?      @relation("CallResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([tableId, status])
+}
+
+// NOTE: The partial unique index BillRequest_one_open_per_table is enforced by SQL only;
+// Prisma cannot express partial indexes. Keep it in the database migration.
+model BillRequest {
+  id                 String     @id @default(cuid())
+  tableId            String
+  table              DiningTable @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  status             BillStatus @default(OPEN)
+  subtotalCents      Int
+  taxCents           Int        @default(0)
+  serviceChargeCents Int        @default(0)
+  totalCents         Int
+  requestedAt        DateTime   @default(now())
+  settledAt          DateTime?
+  settledById        String?
+  settledBy          User?      @relation("BillSettledBy", fields: [settledById], references: [id], onDelete: SetNull)
+  orders             Order[]
+  updatedAt          DateTime   @updatedAt
+
+  @@index([status, requestedAt])
+  @@index([tableId, status])
+}
+
+model FinancialExpense {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  description String
+  amountCents Int
+  createdAt   DateTime @default(now())
+
+  @@index([date])
+}
