@@ -1,0 +1,41 @@
+{
+  "name": "cafe-qr-ordering-system",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Production-ready QR table ordering with a live admin dashboard and menu editor for cafes and restaurants.",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c yellow,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w server && npm run build -w client",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
+    "typecheck:all": "npm run typecheck:all -w server",
+    "test": "npm run test -w server",
+    "db:generate": "npm run db:generate -w server",
+    "db:migrate": "npm run db:migrate -w server",
+    "db:migrate:dev": "npm run db:migrate:dev -w server",
+    "db:push": "npm run db:push -w server",
+    "db:seed": "npm run db:seed -w server",
+    "db:studio": "npm run db:studio -w server",
+    "db:check-integrity": "npm run db:check-integrity -w server",
+    "db:test-integrity": "npm run db:test-integrity -w server",
+    "admin:create": "npm run admin:create -w server",
+    "tables:qr": "npm run tables:qr -w server",
+    "setup": "npm install && npm run db:generate && npm run db:migrate && npm run db:seed",
+    "dev:db": "npm run dev:db -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5",
+    "deepmerge-ts": "^8.0.2"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    }
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}
