@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { errorHandler } from "../middleware/error";
 import { badRequest } from "../lib/errors";
 import { asyncHandler } from "../lib/async-handler";
-import { menuImageUpload, saveMenuImage } from "./menu-image-upload";
+import { menuImageUpload, getUploadedImage, saveMenuImage } from "./menu-image-upload";
 
 const pngImage = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/rWQAAAAASUVORK5CYII=",
@@ -31,8 +31,9 @@ describe("menu image upload", () => {
       "/menu",
       menuImageUpload,
       asyncHandler(async (req, res) => {
-        if (!req.file) throw badRequest("Choose an image.");
-        const imageUrl = await saveMenuImage(req.file, directory);
+        const file = getUploadedImage(req);
+        if (!file) throw badRequest("Choose an image.");
+        const imageUrl = await saveMenuImage(file, directory);
         res.status(201).json({ imageUrl });
       })
     );

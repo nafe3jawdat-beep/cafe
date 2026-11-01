@@ -9,6 +9,20 @@ import { AppError, badRequest } from "../lib/errors";
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+export interface UploadedImage {
+  buffer: Buffer;
+  mimetype: string;
+}
+
+/**
+ * Reads the file populated by the multer middleware without depending on
+ * multer's ambient `Express.Multer.File` global typings, which are not
+ * available in every install or TypeScript environment.
+ */
+export function getUploadedImage(req: object): UploadedImage | undefined {
+  return (req as { file?: UploadedImage }).file;
+}
+
 export const menuImageDirectory = env.UPLOAD_DIR
   ? path.resolve(env.UPLOAD_DIR)
   : path.resolve(__dirname, "../../../uploads");
@@ -54,9 +68,7 @@ export const menuImageUpload: RequestHandler = (req, res, next) => {
   });
 };
 
-function getImageExtension(
-  file: Pick<Express.Multer.File, "buffer" | "mimetype">
-) {
+function getImageExtension(file: UploadedImage) {
   const { buffer, mimetype } = file;
   const isJpeg =
     mimetype === "image/jpeg" &&
@@ -84,7 +96,7 @@ function getImageExtension(
 }
 
 export async function saveMenuImage(
-  file: Pick<Express.Multer.File, "buffer" | "mimetype">,
+  file: UploadedImage,
   directory = menuImageDirectory
 ) {
   const extension = getImageExtension(file);

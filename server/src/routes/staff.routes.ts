@@ -7,6 +7,7 @@ import { notFound } from "../lib/errors";
 import { prisma } from "../lib/prisma";
 import { requireRole } from "../middleware/auth";
 import {
+  getUploadedImage,
   menuImageUpload,
   removeMenuImage,
   saveMenuImage,
@@ -191,7 +192,10 @@ router.post(
   menuImageUpload,
   asyncHandler(async (req, res) => {
     const input = createMenuItemSchema.parse(normalizeMenuItemBody(req.body));
-    const uploadedImageUrl = req.file ? await saveMenuImage(req.file) : null;
+    const uploadedImage = getUploadedImage(req);
+    const uploadedImageUrl = uploadedImage
+      ? await saveMenuImage(uploadedImage)
+      : null;
     if (uploadedImageUrl) input.imageUrl = uploadedImageUrl;
 
     let item;
@@ -221,7 +225,10 @@ router.patch(
   menuImageUpload,
   asyncHandler(async (req, res) => {
     const input = updateMenuItemSchema.parse(normalizeMenuItemBody(req.body));
-    const uploadedImageUrl = req.file ? await saveMenuImage(req.file) : null;
+    const uploadedImage = getUploadedImage(req);
+    const uploadedImageUrl = uploadedImage
+      ? await saveMenuImage(uploadedImage)
+      : null;
     if (uploadedImageUrl) input.imageUrl = uploadedImageUrl;
 
     let item;
