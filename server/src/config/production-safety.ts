@@ -81,8 +81,20 @@ export function assertProductionSafety(
   }
 
   if (issues.length > 0) {
-    throw new Error(
-      `Production safety checks failed for: ${issues.join(", ")}.`
-    );
+    const hints: string[] = [
+      `Production safety checks failed for: ${issues.join(", ")}.`,
+      "Update these variables in the hosting dashboard, then redeploy.",
+    ];
+
+    if (
+      issues.includes("SEED_ADMIN_EMAIL") ||
+      issues.includes("SEED_ADMIN_PASSWORD")
+    ) {
+      hints.push(
+        "SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be removed from production. Create the administrator with `npm run admin:create` instead."
+      );
+    }
+
+    throw new Error(hints.join("\n"));
   }
 }

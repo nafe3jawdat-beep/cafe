@@ -3,10 +3,25 @@
   "version": "1.0.0",
   "private": true,
   "main": "dist/index.js",
-"scripts": {
-  "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json || true",
-  "start": "node dist/app.js"
-},
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:all": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:check-integrity": "tsx scripts/check-data-integrity.ts",
+    "db:test-integrity": "tsx scripts/test-integrity-migration.ts",
+    "dev:db": "tsx scripts/dev-db.ts",
+    "admin:create": "tsx scripts/create-admin.ts",
+    "tables:qr": "tsx scripts/print-table-qr.ts"
+  },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
