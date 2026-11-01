@@ -1,5 +1,5 @@
 const JWT_SECRET_EXAMPLE =
-  "change-me-to-a-random-string-at-least-48-characters-long";
+  "super_secret_jwt_key_cafe_2026_production_very_long_secure_token_xyz998877ؤ";
 
 function isLocalDatabaseWithDefaultCredentials(databaseUrl: string) {
   try {
