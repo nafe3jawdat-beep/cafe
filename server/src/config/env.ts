@@ -43,14 +43,16 @@ if (!parsed.success) {
 export const env = parsed.data;
 export const isProduction = env.NODE_ENV === "production";
 
-// if (isProduction) {
-//   try {
-//     assertProductionSafety(process.env);
-//   } catch (error) {
-//     console.error("[env] Production startup guard failed.");
-//     console.error(
-//       error instanceof Error ? error.message : "Unknown production validation error."
-//     );
-//     process.exit(1);
-//   }
-// }
+if (isProduction) {
+  try {
+    assertProductionSafety(process.env);
+  } catch (error) {
+    console.error("[env] Production startup guard failed.");
+    console.error(
+      error instanceof Error
+        ? error.message
+        : "Unknown production validation error."
+    );
+    process.exit(1);
+  }
+}

@@ -13,7 +13,7 @@ vi.mock("../config/env", () => ({
     DATABASE_URL: "postgresql://test:test@localhost:5432/cafe_qr",
     JWT_SECRET: "integration-test-secret-that-is-long-enough",
     SESSION_TTL_HOURS: 12,
-    CLIENT_ORIGIN: "http://localhost:5173",
+    CLIENT_ORIGIN: "https://cafe-ordering.netlify.app",
     COOKIE_SECURE: false,
     REQUIRE_TABLE_KEY: true,
     TRUST_PROXY_HOPS: 1,
@@ -171,6 +171,46 @@ afterEach(async () => {
 });
 
 describe("table-key and staff-key security integration", () => {
+  it("allows credentialed Netlify CORS requests with Authorization headers", async () => {
+    const app = createApp();
+    expect(app.get("trust proxy")).toBe(1);
+
+    const response = await request(app)
+      .options("/api/auth/login")
+      .set("Origin", env.CLIENT_ORIGIN)
+      .set("Access-Control-Request-Method", "POST")
+      .set("Access-Control-Request-Headers", "authorization,content-type");
+
+    expect(response.status).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      env.CLIENT_ORIGIN
+    );
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+    expect(response.headers["access-control-allow-headers"]).toContain(
+      "Authorization"
+    );
+  });
+
+  it("allows localhost CORS requests outside production", async () => {
+    const response = await request(createApp())
+      .options("/api/auth/login")
+      .set("Origin", "http://localhost:5173")
+      .set("Access-Control-Request-Method", "POST");
+
+    expect(response.status).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:5173"
+    );
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+  });
+
+  it("keeps the health endpoint under the /api prefix", async () => {
+    const response = await request(createApp()).get("/api/health");
+
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe("ok");
+  });
+
   it.each(["menu", "session", "order", "call", "bill"])(
     "rejects missing and wrong table keys for %s",
     async (endpoint) => {

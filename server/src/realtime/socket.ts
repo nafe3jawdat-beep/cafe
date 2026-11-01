@@ -23,9 +23,12 @@ export function createSocketServer(httpServer: HttpServer) {
     cors: {
       origin: env.CLIENT_ORIGIN,
       credentials: true,
+      methods: ["GET", "POST"],
+      allowedHeaders: ["Authorization", "Content-Type"],
     },
     maxHttpBufferSize: 1e5,
     pingTimeout: 20_000,
+    pingInterval: 25_000,
   });
 
   io.use(async (socket, next) => {

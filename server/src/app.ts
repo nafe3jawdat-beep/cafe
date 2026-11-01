@@ -18,7 +18,7 @@ export function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
-  app.set("trust proxy", env.TRUST_PROXY_HOPS);
+  app.set("trust proxy", 1);
 
   app.use((req, res, next) => {
     const requestId = req.get("x-request-id") ?? crypto.randomUUID();
@@ -58,13 +58,18 @@ export function createApp() {
         const allowLocalhost =
           env.NODE_ENV !== "production" && /^http:\/\/localhost:\d+$/.test(origin ?? "");
 
-        if (!origin || allowLocalhost || origin === env.CLIENT_ORIGIN) {
-          callback(null, true);
-          return;
+        let matchesClientOrigin = false;
+        if (origin) {
+          try {
+            matchesClientOrigin =
+              new URL(origin).origin === new URL(env.CLIENT_ORIGIN).origin;
+          } catch {
+            matchesClientOrigin = false;
+          }
         }
 
-        if (env.NODE_ENV === "production") {
-          callback(new Error("Not allowed by CORS"));
+        if (!origin || allowLocalhost || matchesClientOrigin) {
+          callback(null, true);
           return;
         }
 
@@ -72,6 +77,7 @@ export function createApp() {
       },
       credentials: true,
       methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Authorization", "Content-Type", "X-Request-Id"],
     })
   );
 
