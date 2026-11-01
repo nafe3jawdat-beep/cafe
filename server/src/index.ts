@@ -13,10 +13,12 @@ async function start() {
     await prisma.$connect();
   } catch (error) {
     const errorName = error instanceof Error ? error.name : "UnknownError";
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
     console.error(
       "[api] Database connection failed. Check database availability and the configured DATABASE_URL."
     );
-    console.error(`[api] Prisma startup error: ${errorName}`);
+    console.error(`[api] Prisma startup error: ${errorName}: ${errorMessage}`);
     try {
       await prisma.$disconnect();
     } catch (disconnectError) {
@@ -56,7 +58,8 @@ async function start() {
 
 void start().catch(async (error: unknown) => {
   const errorName = error instanceof Error ? error.name : "UnknownError";
-  console.error(`[api] Startup failed: ${errorName}`);
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`[api] Startup failed: ${errorName}: ${errorMessage}`);
   io?.close();
   try {
     await prisma.$disconnect();
@@ -82,5 +85,6 @@ process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
 process.on("unhandledRejection", (reason) => {
   const errorName = reason instanceof Error ? reason.name : "UnknownError";
-  console.error(`[api] Unhandled rejection: ${errorName}`);
+  const errorMessage = reason instanceof Error ? reason.message : String(reason);
+  console.error(`[api] Unhandled rejection: ${errorName}: ${errorMessage}`);
 });
