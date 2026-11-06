@@ -47,22 +47,32 @@ export function verifySession(token: string): SessionPayload {
   }
 }
 
-export function sessionCookieOptions(): CookieOptions {
+/**
+ * The SPA (Netlify) and the API (Render) are separate sites, so the session
+ * cookie must use SameSite=None to be sent on cross-site fetch and Socket.IO
+ * requests. Browsers require Secure whenever SameSite=None is used, so the
+ * mode follows COOKIE_SECURE: local HTTP development stays on Lax (localhost
+ * ports are same-site), while HTTPS production uses None + Secure.
+ */
+export function sessionCookieOptions(
+  secure: boolean = env.COOKIE_SECURE
+): CookieOptions {
   return {
     httpOnly: true,
-    secure: env.COOKIE_SECURE,
-    // Lax supports normal top-level navigation while blocking most cross-site cookie sends.
-    sameSite: "lax",
+    secure,
+    sameSite: secure ? "none" : "lax",
     path: "/",
     maxAge: env.SESSION_TTL_HOURS * 60 * 60 * 1000,
   };
 }
 
-export function clearSessionCookieOptions(): CookieOptions {
+export function clearSessionCookieOptions(
+  secure: boolean = env.COOKIE_SECURE
+): CookieOptions {
   return {
     httpOnly: true,
-    secure: env.COOKIE_SECURE,
-    sameSite: "lax",
+    secure,
+    sameSite: secure ? "none" : "lax",
     path: "/",
   };
 }

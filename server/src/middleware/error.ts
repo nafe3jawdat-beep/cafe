@@ -39,6 +39,25 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     return;
   }
 
+  if (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      ["P1001", "P1002", "P1008", "P1017", "P2024"].includes(error.code))
+  ) {
+    if (env.NODE_ENV !== "test") {
+      console.error("[api] Database unavailable:", error);
+    }
+
+    res.status(503).json({
+      error: {
+        code: "SERVICE_UNAVAILABLE",
+        message:
+          "The database is temporarily unavailable. Please try again in a moment.",
+      },
+    });
+    return;
+  }
+
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2002") {
       res.status(409).json({
