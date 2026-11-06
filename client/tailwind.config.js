@@ -68,12 +68,35 @@ export default {
           "0%": { transform: "scale(0.9)", opacity: "0.6" },
           "80%, 100%": { transform: "scale(1.5)", opacity: "0" },
         },
+        steam: {
+          "0%": {
+            opacity: "0",
+            transform: "translateY(8px) scaleY(0.7)",
+          },
+          "35%": { opacity: "0.9" },
+          "100%": {
+            opacity: "0",
+            transform: "translateY(-18px) scaleY(1.15)",
+          },
+        },
+        "cup-bob": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
+        "loader-slide": {
+          "0%": { transform: "translateX(-120%)" },
+          "100%": { transform: "translateX(320%)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both",
         "fade-in": "fade-in 0.3s ease-out both",
         "slide-up": "slide-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both",
         "pulse-ring": "pulse-ring 1.8s ease-out infinite",
+        steam: "steam 2.8s ease-in-out infinite",
+        "cup-bob": "cup-bob 3.8s ease-in-out infinite",
+        "loader-slide":
+          "loader-slide 1.5s cubic-bezier(0.45, 0, 0.55, 1) infinite",
       },
     },
   },

@@ -26,12 +26,13 @@ import type { MenuItem, MenuResponse } from "../types";
 import { useTableRealtime } from "../hooks/use-table-realtime";
 import { CartProvider, useCart } from "../context/cart-context";
 import { Brand } from "../components/brand";
+import { CafeLoader } from "../components/cafe-loader";
 import { MenuItemCard } from "../components/menu-item-card";
 import { ItemSheet } from "../components/item-sheet";
 import { CartSheet } from "../components/cart-sheet";
 import { ServiceSheet } from "../components/service-sheet";
 import { ImageWithFallback } from "../components/image-with-fallback";
-import { EmptyState, Skeleton, Spinner } from "../components/ui/feedback";
+import { EmptyState } from "../components/ui/feedback";
 import { LanguageSwitcher, useLocalization } from "../lib/localization";
 
 export function MenuPage() {
@@ -53,7 +54,7 @@ export function MenuPage() {
   }
 
   if (menuQuery.isLoading) {
-    return <MenuSkeleton />;
+    return <CafeLoader tableNumber={tableNumber} />;
   }
 
   if (menuQuery.isError || !menuQuery.data) {
@@ -468,34 +469,6 @@ function FeaturedFooter({
         />
       </div>
     </section>
-  );
-}
-
-function MenuSkeleton() {
-  return (
-    <div className="mx-auto min-h-screen max-w-5xl px-4 py-6 sm:px-6">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-10 w-36" />
-        <Skeleton className="h-9 w-24" />
-      </div>
-      <Skeleton className="mt-12 h-4 w-28" />
-      <Skeleton className="mt-4 h-12 w-80 max-w-full" />
-      <Skeleton className="mt-4 h-4 w-64 max-w-full" />
-      <Skeleton className="mt-8 h-12 w-full" />
-      <div className="mt-8 flex gap-2">
-        {[1, 2, 3, 4].map((item) => (
-          <Skeleton key={item} className="h-9 w-24 rounded-full" />
-        ))}
-      </div>
-      <div className="mt-8 grid gap-3 sm:grid-cols-2">
-        {[1, 2, 3, 4].map((item) => (
-          <Skeleton key={item} className="h-32 w-full" />
-        ))}
-      </div>
-      <div className="mt-8 flex justify-center">
-        <Spinner className="h-5 w-5 text-espresso-300" />
-      </div>
-    </div>
   );
 }
 

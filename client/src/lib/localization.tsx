@@ -419,6 +419,8 @@ const translations = new Map<string, string>([
   ["was deleted.", "تم حذفه."],
   ["Edit", "تعديل"],
   ["Delete", "حذف"],
+  ["Brewing your menu…", "نُحضّر لك القائمة…"],
+  ["A moment while we set the table.", "لحظة من فضلك بينما نجهّز طاولتك."],
 ]);
 
 interface LocalizationValue {

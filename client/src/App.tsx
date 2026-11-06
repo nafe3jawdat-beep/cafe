@@ -4,9 +4,11 @@ import {
   Navigate,
   Route,
   Routes,
+  useLocation,
 } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "./components/error-boundary";
+import { CafeLoader } from "./components/cafe-loader";
 import {
   LocalizationProvider,
   useLocalization,
@@ -84,12 +86,27 @@ function PageLoader() {
   );
 }
 
+/**
+ * While a route chunk downloads, show the branded brew animation for table
+ * menus so a QR scan never falls back to a generic spinner.
+ */
+function RouteFallback() {
+  const { pathname } = useLocation();
+  const tableMenu = pathname.match(/^\/table\/(\d+)\/?$/);
+
+  if (tableMenu) {
+    return <CafeLoader tableNumber={Number(tableMenu[1])} />;
+  }
+
+  return <PageLoader />;
+}
+
 export function App() {
   return (
     <LocalizationProvider>
       <ErrorBoundary>
         <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
+          <Suspense fallback={<RouteFallback />}>
             <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/table/:tableNumber" element={<MenuPage />} />
