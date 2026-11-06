@@ -73,6 +73,45 @@ router.get(
   })
 );
 
+// Admin-only snapshot for end-to-end verification: proves the API can read
+// rows and resolve Prisma relations, not just open a connection.
+router.get(
+  "/debug/data",
+  asyncHandler(async (_req, res) => {
+    const [counts, tables, categories, items, orders] = await Promise.all([
+      Promise.all([
+        prisma.diningTable.count(),
+        prisma.category.count(),
+        prisma.menuItem.count(),
+        prisma.order.count(),
+      ]).then(([tableCount, categoryCount, itemCount, orderCount]) => ({
+        tables: tableCount,
+        categories: categoryCount,
+        menuItems: itemCount,
+        orders: orderCount,
+      })),
+      prisma.diningTable.findMany({ take: 5, orderBy: { number: "asc" } }),
+      prisma.category.findMany({ take: 5, orderBy: { sortOrder: "asc" } }),
+      prisma.menuItem.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: { category: true },
+      }),
+      prisma.order.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: { items: true, table: true },
+      }),
+    ]);
+
+    res.json({
+      counts,
+      samples: { tables, categories, items, orders },
+      time: new Date().toISOString(),
+    });
+  })
+);
+
 router.get(
   "/orders",
   asyncHandler(async (req, res) => {

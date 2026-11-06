@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from "./middleware/error";
 import { originGuard } from "./middleware/origin-guard";
 import { requireAuth } from "./middleware/auth";
 import authRoutes from "./routes/auth.routes";
+import healthRoutes from "./routes/health.routes";
 import publicRoutes from "./routes/public.routes";
 import staffRoutes from "./routes/staff.routes";
 import { menuImageDirectory } from "./middleware/menu-image-upload";
@@ -98,13 +99,7 @@ export function createApp() {
     })
   );
 
-  app.get("/api/health", (_req, res) => {
-    res.json({
-      status: "ok",
-      service: "cafe-qr-api",
-      time: new Date().toISOString(),
-    });
-  });
+  app.use("/api/health", healthRoutes);
 
   app.use("/api/auth", authRoutes);
   app.use("/api/public", publicRoutes);

@@ -1,0 +1,11 @@
+{
+  // dev-db.ts imports embedded-postgres, whose type entry points are not
+  // resolvable under moduleResolution "node". It is a dev-only helper and is
+  // intentionally left out of the checks.
+  "extends": "./tsconfig.check.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["scripts/**/*"],
+  "exclude": ["scripts/dev-db.ts"]
+}

