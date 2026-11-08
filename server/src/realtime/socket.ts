@@ -14,6 +14,15 @@ import {
 } from "./events";
 
 export function createSocketServer(httpServer: HttpServer) {
+  const allowedSocketOrigins = new Set(
+    [
+      env.CLIENT_ORIGIN,
+      "https://cafe-q.netlify.app",
+      "http://localhost:5173",
+      "http://localhost:3000",
+    ].filter(Boolean)
+  );
+
   const io = new Server<
     ClientToServerEvents,
     ServerToClientEvents,
@@ -21,10 +30,32 @@ export function createSocketServer(httpServer: HttpServer) {
     SocketData
   >(httpServer, {
     cors: {
-      origin: env.CLIENT_ORIGIN,
+      origin: (origin, callback) => {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+        try {
+          const normalized = new URL(origin).origin;
+          const allowLocalhost =
+            env.NODE_ENV !== "production" &&
+            /^http:\/\/localhost:\d+$/.test(normalized);
+          if (
+            allowLocalhost ||
+            allowedSocketOrigins.has(normalized) ||
+            allowedSocketOrigins.has(origin)
+          ) {
+            callback(null, true);
+            return;
+          }
+        } catch {
+          // fall through
+        }
+        callback(new Error("Not allowed by CORS"));
+      },
       credentials: true,
       methods: ["GET", "POST"],
-      allowedHeaders: ["Authorization", "Content-Type"],
+      allowedHeaders: ["Authorization", "Content-Type", "X-Requested-With"],
     },
     maxHttpBufferSize: 1e5,
     pingTimeout: 20_000,

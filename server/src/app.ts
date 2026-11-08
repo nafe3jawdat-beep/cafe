@@ -44,6 +44,7 @@ export function createApp() {
           connectSrc: [
             "'self'",
             env.CLIENT_ORIGIN,
+            "https://cafe-q.netlify.app",
             "ws:",
             "wss:",
           ],
@@ -53,23 +54,44 @@ export function createApp() {
     })
   );
 
+  const allowedOrigins = new Set(
+    [
+      env.CLIENT_ORIGIN,
+      "https://cafe-q.netlify.app",
+      "http://localhost:5173",
+      "http://localhost:3000",
+    ]
+      .filter(Boolean)
+      .map((value) => {
+        try {
+          return new URL(value).origin;
+        } catch {
+          return value;
+        }
+      })
+  );
+
   app.use(
     cors({
       origin: (origin, callback) => {
-        const allowLocalhost =
-          env.NODE_ENV !== "production" && /^http:\/\/localhost:\d+$/.test(origin ?? "");
-
-        let matchesClientOrigin = false;
-        if (origin) {
-          try {
-            matchesClientOrigin =
-              new URL(origin).origin === new URL(env.CLIENT_ORIGIN).origin;
-          } catch {
-            matchesClientOrigin = false;
-          }
+        if (!origin) {
+          callback(null, true);
+          return;
         }
 
-        if (!origin || allowLocalhost || matchesClientOrigin) {
+        let normalizedOrigin = origin;
+        try {
+          normalizedOrigin = new URL(origin).origin;
+        } catch {
+          callback(new Error("Not allowed by CORS"));
+          return;
+        }
+
+        const allowLocalhost =
+          env.NODE_ENV !== "production" &&
+          /^http:\/\/localhost:\d+$/.test(normalizedOrigin);
+
+        if (allowLocalhost || allowedOrigins.has(normalizedOrigin)) {
           callback(null, true);
           return;
         }
@@ -77,8 +99,13 @@ export function createApp() {
         callback(new Error("Not allowed by CORS"));
       },
       credentials: true,
-      methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Authorization", "Content-Type", "X-Request-Id"],
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: [
+        "Authorization",
+        "Content-Type",
+        "X-Request-Id",
+        "X-Requested-With",
+      ],
     })
   );
 

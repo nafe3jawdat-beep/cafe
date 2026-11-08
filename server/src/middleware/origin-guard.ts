@@ -3,13 +3,31 @@ import { env } from "../config/env";
 import { forbidden } from "../lib/errors";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const GUARDED_METHODS = new Set(["POST", "PATCH", "DELETE"]);
+const GUARDED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function normalizeOrigin(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return undefined;
+  }
+}
 
 export function createOriginGuard(config: {
   NODE_ENV: string;
   CLIENT_ORIGIN: string;
 }): RequestHandler {
-  const clientOrigin = new URL(config.CLIENT_ORIGIN).origin;
+  const allowedOrigins = new Set(
+    [
+      config.CLIENT_ORIGIN,
+      "https://cafe-q.netlify.app",
+      "http://localhost:5173",
+      "http://localhost:3000",
+    ]
+      .map(normalizeOrigin)
+      .filter((value): value is string => Boolean(value))
+  );
 
   return (req, _res, next) => {
     if (SAFE_METHODS.has(req.method) || !GUARDED_METHODS.has(req.method)) {
@@ -18,30 +36,16 @@ export function createOriginGuard(config: {
 
     if (config.NODE_ENV === "development") return next();
 
-    const origin = req.get("origin");
-    if (origin) {
-      let requestOrigin: string;
-      try {
-        requestOrigin = new URL(origin).origin;
-      } catch {
-        return next(forbidden("Request origin is not allowed."));
-      }
-
-      if (requestOrigin !== clientOrigin) {
+    const requestOrigin = normalizeOrigin(req.get("origin"));
+    if (requestOrigin) {
+      if (!allowedOrigins.has(requestOrigin)) {
         return next(forbidden("Request origin is not allowed."));
       }
       return next();
     }
 
-    const referer = req.get("referer");
-    let refererOrigin: string | undefined;
-    try {
-      refererOrigin = referer ? new URL(referer).origin : undefined;
-    } catch {
-      refererOrigin = undefined;
-    }
-
-    if (refererOrigin !== clientOrigin) {
+    const refererOrigin = normalizeOrigin(req.get("referer"));
+    if (!refererOrigin || !allowedOrigins.has(refererOrigin)) {
       return next(forbidden("Request origin is not allowed."));
     }
 
