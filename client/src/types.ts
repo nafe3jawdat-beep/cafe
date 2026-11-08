@@ -162,6 +162,28 @@ export interface StaffStats {
   currency: string;
 }
 
+export interface CafeSettings {
+  latitude: number | null;
+  longitude: number | null;
+  radiusMeters: number;
+  openingTime: string;
+  closingTime: string;
+  timezone: string;
+  isGeoCheckEnabled: boolean;
+  isOpenNow: boolean;
+  updatedAt: string | null;
+}
+
+export interface CafeSettingsPayload {
+  latitude: number | null;
+  longitude: number | null;
+  radiusMeters: number;
+  openingTime: string;
+  closingTime: string;
+  timezone: string;
+  isGeoCheckEnabled: boolean;
+}
+
 export interface FinancialExpense {
   id: string;
   date: string;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Link,
@@ -19,7 +19,13 @@ import {
   WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "../lib/api";
+import { ApiError, api } from "../lib/api";
+import {
+  getCurrentCoordinates,
+  LocationError,
+  type Coordinates,
+  type LocationErrorCode,
+} from "../lib/geolocation";
 import { cn, formatMoney } from "../lib/format";
 import { tablePath } from "../lib/table-path";
 import type { MenuItem, MenuResponse } from "../types";
@@ -27,6 +33,7 @@ import { useTableRealtime } from "../hooks/use-table-realtime";
 import { CartProvider, useCart } from "../context/cart-context";
 import { Brand } from "../components/brand";
 import { CafeLoader } from "../components/cafe-loader";
+import { LocationBlocked } from "../components/location-blocked";
 import { MenuItemCard } from "../components/menu-item-card";
 import { ItemSheet } from "../components/item-sheet";
 import { CartSheet } from "../components/cart-sheet";
@@ -35,6 +42,29 @@ import { ImageWithFallback } from "../components/image-with-fallback";
 import { EmptyState } from "../components/ui/feedback";
 import { LanguageSwitcher, useLocalization } from "../lib/localization";
 
+function locationDetails(details: unknown): {
+  distanceMeters?: number;
+  radiusMeters?: number;
+  openingTime?: string;
+  closingTime?: string;
+} {
+  if (!details || typeof details !== "object") return {};
+  const value = details as Record<string, unknown>;
+
+  return {
+    distanceMeters:
+      typeof value.distanceMeters === "number"
+        ? value.distanceMeters
+        : undefined,
+    radiusMeters:
+      typeof value.radiusMeters === "number" ? value.radiusMeters : undefined,
+    openingTime:
+      typeof value.openingTime === "string" ? value.openingTime : undefined,
+    closingTime:
+      typeof value.closingTime === "string" ? value.closingTime : undefined,
+  };
+}
+
 export function MenuPage() {
   const { tableNumber: tableParam } = useParams();
   const [searchParams] = useSearchParams();
@@ -42,22 +72,121 @@ export function MenuPage() {
   const tableKey = searchParams.get("key") ?? undefined;
   const validTable = Number.isInteger(tableNumber) && tableNumber > 0;
 
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
+  const [locationStatus, setLocationStatus] = useState<
+    "idle" | "requesting" | "failed"
+  >("idle");
+  const [locationIssue, setLocationIssue] = useState<
+    LocationErrorCode | undefined
+  >();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const autoRequested = useRef(false);
+
+  const requestLocation = useCallback(() => {
+    setLocationStatus("requesting");
+    setLocationIssue(undefined);
+
+    getCurrentCoordinates({ force: true, timeoutMs: 20_000 })
+      .then((next) => {
+        setCoordinates(next);
+        setRefreshKey((key) => key + 1);
+        setLocationStatus("idle");
+      })
+      .catch((error: unknown) => {
+        setLocationIssue(
+          error instanceof LocationError ? error.code : "unavailable"
+        );
+        setLocationStatus("failed");
+      });
+  }, []);
+
   const menuQuery = useQuery({
-    queryKey: ["table-menu", tableNumber, tableKey],
-    queryFn: () => api.getMenu(tableNumber, tableKey),
+    queryKey: [
+      "table-menu",
+      tableNumber,
+      tableKey,
+      coordinates?.lat ?? null,
+      coordinates?.lng ?? null,
+      refreshKey,
+    ],
+    queryFn: () => api.getMenu(tableNumber, tableKey, coordinates ?? undefined),
     enabled: validTable,
     retry: false,
   });
+
+  // The server is the source of truth: only ask for the browser position when
+  // the menu endpoint says the gate is on. This keeps the permission prompt
+  // away from cafés that have not enabled the feature.
+  useEffect(() => {
+    if (autoRequested.current) return;
+    if (!(menuQuery.error instanceof ApiError)) return;
+    if (menuQuery.error.code !== "GEO_REQUIRED") return;
+
+    autoRequested.current = true;
+    requestLocation();
+  }, [menuQuery.error, requestLocation]);
+
+  const refreshWithoutLocation = useCallback(() => {
+    setRefreshKey((key) => key + 1);
+  }, []);
 
   if (!validTable) {
     return <MenuError message="That table number doesn't look right." />;
   }
 
-  if (menuQuery.isLoading) {
+  if (menuQuery.isLoading || locationStatus === "requesting") {
     return <CafeLoader tableNumber={tableNumber} />;
   }
 
   if (menuQuery.isError || !menuQuery.data) {
+    const error = menuQuery.error;
+
+    if (error instanceof ApiError) {
+      const details = locationDetails(error.details);
+
+      if (error.code === "GEO_REQUIRED") {
+        // The effect above is about to request the position. Keep the branded
+        // loader on screen instead of flashing the blocked state.
+        if (coordinates === null && locationStatus !== "failed") {
+          return <CafeLoader tableNumber={tableNumber} />;
+        }
+
+        return (
+          <LocationBlocked
+            reason={{ kind: "permission", issue: locationIssue }}
+            onRetry={requestLocation}
+          />
+        );
+      }
+
+      if (error.code === "OUT_OF_RANGE") {
+        return (
+          <LocationBlocked
+            reason={{ kind: "out-of-range", ...details }}
+            onRetry={requestLocation}
+          />
+        );
+      }
+
+      if (error.code === "RESTAURANT_CLOSED") {
+        return (
+          <LocationBlocked
+            reason={{ kind: "closed", ...details }}
+            onRetry={refreshWithoutLocation}
+          />
+        );
+      }
+
+      if (error.code === "GEO_NOT_CONFIGURED") {
+        return (
+          <LocationBlocked
+            reason={{ kind: "unavailable" }}
+            onRetry={refreshWithoutLocation}
+          />
+        );
+      }
+    }
+
     return (
       <MenuError
         message={

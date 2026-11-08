@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { badRequest, conflict, notFound } from "../lib/errors";
 import { prisma } from "../lib/prisma";
+import { assertGuestAccess } from "./cafe-settings.service";
 import { calculateTotals } from "./pricing";
 import { getTableByNumber } from "./table.service";
 
@@ -48,10 +49,13 @@ export function sumBillAmount(
 export interface RequestBillInput {
   tableNumber: number;
   tableKey?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export async function requestBill(input: RequestBillInput) {
   const table = await getTableByNumber(input.tableNumber, input.tableKey);
+  await assertGuestAccess({ lat: input.lat, lng: input.lng });
 
   const existing = await prisma.billRequest.findFirst({
     where: { tableId: table.id, status: "OPEN" },

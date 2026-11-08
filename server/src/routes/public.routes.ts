@@ -6,12 +6,14 @@ import { EVENTS } from "../realtime/events";
 import {
   createCallSchema,
   createOrderSchema,
+  menuQuerySchema,
   requestBillSchema,
   tableKeyQuerySchema,
   tableNumberParamsSchema,
 } from "../schemas";
 import { createStaffCall } from "../services/call.service";
 import { requestBill } from "../services/bill.service";
+import { assertGuestAccess } from "../services/cafe-settings.service";
 import { getPublicMenu } from "../services/menu.service";
 import { createOrder, getTableSession } from "../services/order.service";
 import { getTableByNumber } from "../services/table.service";
@@ -30,8 +32,9 @@ router.get(
   publicLimiter,
   asyncHandler(async (req, res) => {
     const { number } = tableNumberParamsSchema.parse(req.params);
-    const { key } = tableKeyQuerySchema.parse(req.query);
+    const { key, lat, lng } = menuQuerySchema.parse(req.query);
     const table = await getTableByNumber(number, key);
+    await assertGuestAccess({ lat, lng });
     res.json(await getPublicMenu(table));
   })
 );

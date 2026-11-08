@@ -9,6 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { api } from "../lib/api";
+import { withLocationRetry } from "../lib/geolocation";
 import { cn } from "../lib/format";
 import type { CallType } from "../types";
 import { Modal } from "./ui/modal";
@@ -66,7 +67,15 @@ export function ServiceSheet({
 
   const mutation = useMutation({
     mutationFn: (type: CallType) =>
-      api.createCall({ tableNumber, tableKey, type, note }),
+      withLocationRetry((coordinates) =>
+        api.createCall({
+          tableNumber,
+          tableKey,
+          type,
+          note,
+          ...(coordinates ?? {}),
+        })
+      ),
     onSuccess: () => {
       toast.success(t("A staff member has been notified."), {
         description: t("They'll be with you shortly."),

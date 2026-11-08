@@ -1,5 +1,7 @@
 import type {
   Bill,
+  CafeSettings,
+  CafeSettingsPayload,
   CartLine,
   Category,
   FinancialExpense,
@@ -150,6 +152,8 @@ const query = (params: Record<string, string | number | undefined>) => {
 export interface CreateOrderPayload {
   tableNumber: number;
   tableKey?: string;
+  lat?: number;
+  lng?: number;
   clientRequestId: string;
   customerName?: string;
   note?: string;
@@ -190,9 +194,17 @@ function menuItemFormData(payload: Partial<MenuItemPayload>) {
 }
 
 export const api = {
-  getMenu(tableNumber: number, tableKey?: string) {
+  getMenu(
+    tableNumber: number,
+    tableKey?: string,
+    location?: { lat: number; lng: number }
+  ) {
     return request<MenuResponse>(
-      `/public/tables/${tableNumber}/menu${query({ key: tableKey })}`
+      `/public/tables/${tableNumber}/menu${query({
+        key: tableKey,
+        lat: location?.lat,
+        lng: location?.lng,
+      })}`
     );
   },
 
@@ -212,6 +224,8 @@ export const api = {
   createCall(payload: {
     tableNumber: number;
     tableKey?: string;
+    lat?: number;
+    lng?: number;
     type: "WAITER" | "WATER" | "CLEAN_TABLE" | "OTHER";
     note?: string;
   }) {
@@ -221,7 +235,12 @@ export const api = {
     });
   },
 
-  requestBill(payload: { tableNumber: number; tableKey?: string }) {
+  requestBill(payload: {
+    tableNumber: number;
+    tableKey?: string;
+    lat?: number;
+    lng?: number;
+  }) {
     return request<{ bill: Bill }>("/public/bills", {
       method: "POST",
       body: JSON.stringify(payload),
@@ -245,6 +264,17 @@ export const api = {
 
   staffStats() {
     return request<StaffStats>("/staff/stats");
+  },
+
+  staffSettings() {
+    return request<{ settings: CafeSettings }>("/staff/settings");
+  },
+
+  updateStaffSettings(payload: CafeSettingsPayload) {
+    return request<{ settings: CafeSettings }>("/staff/settings", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
 
   staffOrders(scope: "active" | "today" | "all" = "active") {

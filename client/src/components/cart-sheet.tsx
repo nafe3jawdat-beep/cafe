@@ -9,6 +9,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { api } from "../lib/api";
+import { withLocationRetry } from "../lib/geolocation";
 import { cn, formatMoney } from "../lib/format";
 import type { Bill, Order, Pricing } from "../types";
 import { useCart } from "../context/cart-context";
@@ -46,18 +47,21 @@ export function CartSheet({
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random()}`;
 
-      return api.createOrder({
-        tableNumber,
-        tableKey,
-        clientRequestId,
-        note,
-        customerName,
-        items: cart.lines.map((line) => ({
-          menuItemId: line.menuItemId,
-          quantity: line.quantity,
-          notes: line.notes,
-        })),
-      });
+      return withLocationRetry((coordinates) =>
+        api.createOrder({
+          tableNumber,
+          tableKey,
+          clientRequestId,
+          note,
+          customerName,
+          items: cart.lines.map((line) => ({
+            menuItemId: line.menuItemId,
+            quantity: line.quantity,
+            notes: line.notes,
+          })),
+          ...(coordinates ?? {}),
+        })
+      );
     },
     onSuccess: ({ order }) => {
       cart.clear();

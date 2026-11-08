@@ -6,6 +6,7 @@ import {
   LogOut,
   QrCode,
   ReceiptText,
+  Settings2,
   UtensilsCrossed,
   Wifi,
   WifiOff,
@@ -34,6 +35,7 @@ const navItems = [
   { to: "/admin/finance", label: "Finance", icon: ChartNoAxesCombined },
   { to: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
   { to: "/admin/tables", label: "Tables & QR", icon: QrCode },
+  { to: "/admin/settings", label: "Settings", icon: Settings2 },
 ];
 
 export function StaffLayout() {
@@ -231,7 +233,7 @@ export function StaffLayout() {
                 end={item.end}
                 className={({ isActive }) =>
                   cn(
-                    "relative flex min-w-14 flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[0.6rem] font-semibold transition",
+                    "relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 text-[0.6rem] font-semibold transition",
                     isActive
                       ? "text-espresso-900"
                       : "text-espresso-300 hover:text-espresso-500"

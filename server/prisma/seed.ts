@@ -342,6 +342,14 @@ async function main() {
 
   const users = await seedUsers();
 
+  // The guest location gate is off by default. Keep any settings an admin
+  // already saved when re-running the seed.
+  await prisma.cafeSettings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1 },
+  });
+
   console.log("[seed] Done.");
   console.log("[seed] Admin account:");
   for (const user of users) {

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../lib/api";
+import { withLocationRetry } from "../lib/geolocation";
 import { formatMoney, formatTime, orderStatusLabel } from "../lib/format";
 import { tablePath } from "../lib/table-path";
 import { useTableRealtime } from "../hooks/use-table-realtime";
@@ -54,7 +55,14 @@ export function StatusPage() {
   });
 
   const billMutation = useMutation({
-    mutationFn: () => api.requestBill({ tableNumber, tableKey }),
+    mutationFn: () =>
+      withLocationRetry((coordinates) =>
+        api.requestBill({
+          tableNumber,
+          tableKey,
+          ...(coordinates ?? {}),
+        })
+      ),
     onSuccess: () => {
       setConfirmBillOpen(false);
       toast.success(t("Bill requested"), {

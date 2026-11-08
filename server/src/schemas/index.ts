@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidTime, isValidTimeZone } from "../lib/service-hours";
 
 export const tableNumberParamsSchema = z.object({
   number: z.coerce.number().int().positive().max(100000),
@@ -13,6 +14,24 @@ export const tableKeyQuerySchema = z.object({
   key: z.string().min(1).max(200).optional(),
 });
 
+const coordinateFields = {
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+};
+
+// Both coordinates travel together. Sending only one is a client bug.
+const coordinatesArePaired = (value: { lat?: number; lng?: number }) =>
+  (value.lat === undefined) === (value.lng === undefined);
+
+const pairedCoordinatesMessage = {
+  message: "Provide both a latitude and a longitude.",
+  path: ["lat"],
+};
+
+export const menuQuerySchema = tableKeyQuerySchema
+  .extend(coordinateFields)
+  .refine(coordinatesArePaired, pairedCoordinatesMessage);
+
 export const tableReferenceSchema = z.object({
   tableNumber: z.coerce.number().int().positive().max(100000),
   tableKey: z.string().min(1).max(200).optional(),
@@ -24,19 +43,28 @@ export const orderItemInputSchema = z.object({
   notes: z.string().trim().max(160).optional().or(z.literal("")),
 });
 
-export const createOrderSchema = tableReferenceSchema.extend({
-  clientRequestId: z.string().uuid(),
-  customerName: z.string().trim().max(80).optional().or(z.literal("")),
-  note: z.string().trim().max(500).optional().or(z.literal("")),
-  items: z.array(orderItemInputSchema).min(1).max(50),
-});
+export const createOrderSchema = tableReferenceSchema
+  .extend({
+    ...coordinateFields,
+    clientRequestId: z.string().uuid(),
+    customerName: z.string().trim().max(80).optional().or(z.literal("")),
+    note: z.string().trim().max(500).optional().or(z.literal("")),
+    items: z.array(orderItemInputSchema).min(1).max(50),
+  })
+  .refine(coordinatesArePaired, pairedCoordinatesMessage);
 
-export const createCallSchema = tableReferenceSchema.extend({
-  type: z.enum(["WAITER", "WATER", "CLEAN_TABLE", "OTHER"]),
-  note: z.string().trim().max(200).optional().or(z.literal("")),
-});
+export const createCallSchema = tableReferenceSchema
+  .extend({
+    ...coordinateFields,
+    type: z.enum(["WAITER", "WATER", "CLEAN_TABLE", "OTHER"]),
+    note: z.string().trim().max(200).optional().or(z.literal("")),
+  })
+  .refine(coordinatesArePaired, pairedCoordinatesMessage);
 
-export const requestBillSchema = tableReferenceSchema;
+export const requestBillSchema = tableReferenceSchema
+  .extend(coordinateFields)
+  .refine(coordinatesArePaired, pairedCoordinatesMessage);
+
 
 export const loginSchema = z.object({
   email: z.string().trim().email().max(200),
@@ -155,3 +183,36 @@ export const staffCallsQuerySchema = z.object({
 export const staffBillsQuerySchema = z.object({
   scope: z.enum(["open", "all"]).default("open"),
 });
+
+const timeOfDaySchema = z
+  .string()
+  .trim()
+  .refine(isValidTime, "Use a time like 09:00.");
+
+export const updateCafeSettingsSchema = z
+  .object({
+    latitude: z.coerce.number().min(-90).max(90).nullable(),
+    longitude: z.coerce.number().min(-180).max(180).nullable(),
+    radiusMeters: z.coerce.number().int().min(10).max(10_000),
+    openingTime: timeOfDaySchema,
+    closingTime: timeOfDaySchema,
+    timezone: z
+      .string()
+      .trim()
+      .min(1)
+      .max(80)
+      .refine(isValidTimeZone, "Use a valid timezone, such as Asia/Amman."),
+    isGeoCheckEnabled: z.boolean(),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      value.isGeoCheckEnabled &&
+      (value.latitude == null || value.longitude == null)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["latitude"],
+        message: "Set the café location before enabling the location check.",
+      });
+    }
+  });

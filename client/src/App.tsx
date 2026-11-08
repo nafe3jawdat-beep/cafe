@@ -72,6 +72,11 @@ const StaffTablesPage = lazy(() =>
     default: module.StaffTablesPage,
   }))
 );
+const StaffSettingsPage = lazy(() =>
+  import("./pages/staff/staff-settings-page").then((module) => ({
+    default: module.StaffSettingsPage,
+  }))
+);
 
 function PageLoader() {
   const { translate: t } = useLocalization();
@@ -119,6 +124,7 @@ export function App() {
               <Route path="finance" element={<StaffFinancePage />} />
               <Route path="menu" element={<StaffMenuPage />} />
               <Route path="tables" element={<StaffTablesPage />} />
+              <Route path="settings" element={<StaffSettingsPage />} />
             </Route>
             {/* Keep old bookmarks working. */}
             <Route

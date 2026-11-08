@@ -1,6 +1,7 @@
 import type { CallStatus, CallType, Prisma } from "@prisma/client";
 import { conflict, notFound } from "../lib/errors";
 import { prisma } from "../lib/prisma";
+import { assertGuestAccess } from "./cafe-settings.service";
 import { getTableByNumber } from "./table.service";
 
 const callInclude = {
@@ -11,12 +12,15 @@ const callInclude = {
 export interface CreateCallInput {
   tableNumber: number;
   tableKey?: string;
+  lat?: number;
+  lng?: number;
   type: CallType;
   note?: string;
 }
 
 export async function createStaffCall(input: CreateCallInput) {
   const table = await getTableByNumber(input.tableNumber, input.tableKey);
+  await assertGuestAccess({ lat: input.lat, lng: input.lng });
 
   // Collapse accidental double taps into one alert for the same request.
   const recent = await prisma.staffCall.findFirst({

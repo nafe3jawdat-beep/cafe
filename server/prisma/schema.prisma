@@ -195,3 +195,18 @@ model FinancialExpense {
 
   @@index([date])
 }
+
+// Singleton row (id = 1) holding the café's location and service hours.
+// The guest gate is off until an administrator enables it.
+model CafeSettings {
+  id                Int      @id @default(1)
+  latitude          Float?
+  longitude         Float?
+  radiusMeters      Int      @default(50)
+  openingTime       String   @default("09:00")
+  closingTime       String   @default("22:00")
+  timezone          String   @default("UTC")
+  isGeoCheckEnabled Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+  updatedById       String?
+}

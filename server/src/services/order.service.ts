@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { allowedOrderTransitions } from "./order-status";
 import { calculateTotals } from "./pricing";
 import { getTableByNumber, publicTable } from "./table.service";
+import { assertGuestAccess } from "./cafe-settings.service";
 
 export const orderInclude = {
   table: { select: { id: true, number: true, name: true } },
@@ -17,6 +18,8 @@ export const orderInclude = {
 export interface CreateOrderInput {
   tableNumber: number;
   tableKey?: string;
+  lat?: number;
+  lng?: number;
   clientRequestId: string;
   customerName?: string;
   note?: string;
@@ -41,6 +44,10 @@ export async function createOrder(input: CreateOrderInput) {
     }
     return existing;
   }
+
+  // A retry with the same clientRequestId is idempotent and returns the
+  // existing order above. New orders must pass the current guest gate.
+  await assertGuestAccess({ lat: input.lat, lng: input.lng });
 
   const openBill = await prisma.billRequest.findFirst({
     where: { tableId: table.id, status: "OPEN" },

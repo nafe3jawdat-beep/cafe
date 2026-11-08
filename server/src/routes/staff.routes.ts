@@ -25,10 +25,16 @@ import {
   staffOrdersQuerySchema,
   updateAvailabilitySchema,
   updateCallSchema,
+  updateCafeSettingsSchema,
   updateMenuItemSchema,
   updateOrderStatusSchema,
 } from "../schemas";
 import { getStaffBills, settleBill } from "../services/bill.service";
+import {
+  getCafeSettings,
+  serializeCafeSettings,
+  updateCafeSettings,
+} from "../services/cafe-settings.service";
 import { getStaffCalls, updateStaffCall } from "../services/call.service";
 import {
   createFinancialExpense,
@@ -70,6 +76,23 @@ router.get(
   "/stats",
   asyncHandler(async (_req, res) => {
     res.json(await getStaffStats());
+  })
+);
+
+router.get(
+  "/settings",
+  asyncHandler(async (_req, res) => {
+    res.json({ settings: serializeCafeSettings(await getCafeSettings()) });
+  })
+);
+
+router.put(
+  "/settings",
+  asyncHandler(async (req, res) => {
+    const input = updateCafeSettingsSchema.parse(req.body);
+    const staff = staffSession(req);
+    const settings = await updateCafeSettings(input, staff.id);
+    res.json({ settings: serializeCafeSettings(settings) });
   })
 );
 
