@@ -17,6 +17,7 @@ import { cn } from "../../lib/format";
 import { getCurrentCoordinates, LocationError } from "../../lib/geolocation";
 import { useLocalization } from "../../lib/localization";
 import type { CafeSettings, CafeSettingsPayload } from "../../types";
+import { LocationPickerMap } from "../../components/location-picker-map";
 import { EmptyState, Skeleton, Spinner } from "../../components/ui/feedback";
 
 const TIMEZONE_SUGGESTIONS = [
@@ -274,15 +275,19 @@ function SettingsForm({
     Math.abs(latitude) <= 90 &&
     Math.abs(longitude) <= 180;
 
+  const setLocation = (lat: number, lng: number) => {
+    setForm((current) => ({
+      ...current,
+      latitude: lat.toFixed(6),
+      longitude: lng.toFixed(6),
+    }));
+  };
+
   const fillFromDevice = () => {
     setLocating(true);
     getCurrentCoordinates({ force: true })
       .then((coordinates) => {
-        setForm((current) => ({
-          ...current,
-          latitude: coordinates.lat.toFixed(6),
-          longitude: coordinates.lng.toFixed(6),
-        }));
+        setLocation(coordinates.lat, coordinates.lng);
         toast.success(t("Location filled from this device."));
       })
       .catch((error: unknown) => {
@@ -492,17 +497,19 @@ function SettingsForm({
           ) : null}
         </div>
 
-        {validCoordinates ? (
-          <div className="mt-4 overflow-hidden rounded-2xl border border-espresso-900/10">
-            <iframe
-              title={t("Café location preview")}
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.003}%2C${latitude - 0.0015}%2C${longitude + 0.003}%2C${latitude + 0.0015}&layer=mapnik&marker=${latitude}%2C${longitude}`}
-              className="h-56 w-full"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-        ) : null}
+        <div className="mt-4 space-y-2">
+          <LocationPickerMap
+            latitude={validCoordinates ? latitude : null}
+            longitude={validCoordinates ? longitude : null}
+            onChange={setLocation}
+            className="overflow-hidden rounded-2xl border border-espresso-900/10"
+          />
+          <p className="text-xs leading-relaxed text-espresso-400">
+            {t(
+              "Click the map to place the pin, or drag the pin to adjust the café location."
+            )}
+          </p>
+        </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <Field

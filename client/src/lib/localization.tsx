@@ -448,6 +448,10 @@ const translations = new Map<string, string>([
   ["Between -180 and 180. Example: 35.910600", "بين -180 و180. مثال: 35.910600"],
   ["Use my current location", "استخدم موقعي الحالي"],
   ["Open map", "افتح الخريطة"],
+  [
+    "Click the map to place the pin, or drag the pin to adjust the café location.",
+    "انقر على الخريطة لوضع الدبوس، أو اسحبه لضبط موقع المقهى بدقة.",
+  ],
   ["Café location preview", "معاينة موقع المقهى"],
   ["Guests outside this distance are blocked. 50–150 m works well for most cafés.", "يُحظر الضيوف خارج هذه المسافة. 50–150 مترًا مناسبة لمعظم المقاهي."],
   ["Opening hours", "ساعات العمل"],
