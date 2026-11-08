@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ImageOff } from "lucide-react";
 import { cn } from "../lib/format";
+import { assetUrl } from "../lib/config";
 
 export function ImageWithFallback({
   src,
@@ -14,10 +15,7 @@ export function ImageWithFallback({
   imgClassName?: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
-  const imageSrc = src?.startsWith("/uploads/")
-    ? `${apiBase}${src}`
-    : src;
+  const imageSrc = assetUrl(src);
 
   useEffect(() => {
     setFailed(false);

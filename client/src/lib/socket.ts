@@ -6,8 +6,7 @@ import type {
   OrderStatus,
   StaffCall,
 } from "../types";
-
-const SOCKET_URL = import.meta.env.VITE_API_URL || undefined;
+import { IS_DEV, SOCKET_URL } from "./config";
 
 export interface MenuEvent {
   action: "created" | "updated" | "deleted";
@@ -38,14 +37,35 @@ export interface ClientEvents {
 export type AppSocket = Socket<ServerEvents, ClientEvents>;
 
 export function createSocket(): AppSocket {
-  return io(SOCKET_URL, {
+  const socket = io(SOCKET_URL, {
     withCredentials: true,
     autoConnect: true,
     transports: ["websocket", "polling"],
+    // Without this, a failed WebSocket handshake (corporate proxy, captive Wi-Fi)
+    // never falls back to long-polling.
+    tryAllTransports: true,
     reconnection: true,
-    reconnectionDelay: 800,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
+    // A sleeping Render instance can need longer than the 20s default to wake up.
+    timeout: 30_000,
   });
+
+  socket.on("connect", () => {
+    if (IS_DEV) console.info(`[socket] Connected (${socket.id ?? "connected"}).`);
+  });
+  socket.on("disconnect", (reason) => {
+    console.warn(`[socket] Disconnected: ${reason}.`);
+  });
+  socket.on("connect_error", (error) => {
+    console.error(`[socket] Connection failed: ${error.message}.`);
+  });
+  socket.io.on("reconnect_attempt", (attempt) => {
+    if (IS_DEV) console.info(`[socket] Reconnection attempt ${attempt}.`);
+  });
+
+  return socket;
 }
 
 export type { Order, OrderStatus, StaffCall, CallStatus };

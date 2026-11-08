@@ -14,8 +14,10 @@ import type {
   TableSession,
   TableSummary,
 } from "../types";
+import { API_BASE, IS_DEV } from "./config";
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+// Render free instances can take about a minute to wake up after being idle.
+const REQUEST_TIMEOUT_MS = 60_000;
 
 export class ApiError extends Error {
   readonly status: number;
@@ -31,10 +33,30 @@ export class ApiError extends Error {
   }
 }
 
+// Development-only logging. Request bodies are never logged (they can hold passwords),
+// and /auth/ responses are logged without their payload.
+function logResponse(
+  method: string,
+  path: string,
+  status: number | string,
+  startedAt: number,
+  data?: unknown
+) {
+  if (!IS_DEV) return;
+  const ms = Math.round(performance.now() - startedAt);
+  const label = `[api] ← ${status} ${method} ${path} (${ms}ms)`;
+  if (data === undefined || path.startsWith("/auth/")) {
+    console.debug(label);
+  } else {
+    console.debug(label, data);
+  }
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const method = (options.method ?? "GET").toUpperCase();
   const headers = new Headers(options.headers);
   if (
     options.body &&
@@ -44,17 +66,54 @@ async function request<T>(
     headers.set("content-type", "application/json");
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-    credentials: "include",
+  const controller = new AbortController();
+  let timedOut = false;
+  options.signal?.addEventListener("abort", () => controller.abort(), {
+    once: true,
   });
+  const timeoutId = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
+
+  const startedAt = performance.now();
+  if (IS_DEV) console.debug(`[api] → ${method} ${API_BASE}${path}`);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      credentials: "include",
+      signal: controller.signal,
+    });
+  } catch (cause) {
+    logResponse(method, path, timedOut ? "TIMEOUT" : "NETWORK_ERROR", startedAt);
+    if (
+      cause instanceof DOMException &&
+      cause.name === "AbortError" &&
+      !timedOut
+    ) {
+      throw cause;
+    }
+    throw new ApiError(
+      0,
+      timedOut ? "REQUEST_TIMEOUT" : "NETWORK_ERROR",
+      timedOut
+        ? "The server took too long to respond. Please try again."
+        : "Cannot reach the server. Check your connection and try again."
+    );
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   if (response.status === 204) {
+    logResponse(method, path, 204, startedAt);
     return undefined as T;
   }
 
   const data = await response.json().catch(() => null);
+  logResponse(method, path, response.status, startedAt, data);
 
   if (!response.ok) {
     const error = data?.error;
@@ -63,6 +122,16 @@ async function request<T>(
       error?.code ?? "REQUEST_FAILED",
       error?.message ?? "The request could not be completed.",
       error?.details
+    );
+  }
+
+  if (data === null) {
+    // A 2xx that is not JSON usually means the request hit the static host (HTML)
+    // instead of the API, i.e. VITE_API_URL is wrong or missing in this build.
+    throw new ApiError(
+      response.status,
+      "INVALID_RESPONSE",
+      "The server returned an unexpected response."
     );
   }
 
@@ -123,18 +192,18 @@ function menuItemFormData(payload: Partial<MenuItemPayload>) {
 export const api = {
   getMenu(tableNumber: number, tableKey?: string) {
     return request<MenuResponse>(
-      `/api/public/tables/${tableNumber}/menu${query({ key: tableKey })}`
+      `/public/tables/${tableNumber}/menu${query({ key: tableKey })}`
     );
   },
 
   getTableSession(tableNumber: number, tableKey?: string) {
     return request<TableSession>(
-      `/api/public/tables/${tableNumber}/session${query({ key: tableKey })}`
+      `/public/tables/${tableNumber}/session${query({ key: tableKey })}`
     );
   },
 
   createOrder(payload: CreateOrderPayload) {
-    return request<{ order: Order }>("/api/public/orders", {
+    return request<{ order: Order }>("/public/orders", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -146,46 +215,46 @@ export const api = {
     type: "WAITER" | "WATER" | "CLEAN_TABLE" | "OTHER";
     note?: string;
   }) {
-    return request<{ call: StaffCall }>("/api/public/calls", {
+    return request<{ call: StaffCall }>("/public/calls", {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
   requestBill(payload: { tableNumber: number; tableKey?: string }) {
-    return request<{ bill: Bill }>("/api/public/bills", {
+    return request<{ bill: Bill }>("/public/bills", {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
   login(email: string, password: string) {
-    return request<{ user: StaffUser }>("/api/auth/login", {
+    return request<{ user: StaffUser }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
   },
 
   me() {
-    return request<{ user: StaffUser }>("/api/auth/me");
+    return request<{ user: StaffUser }>("/auth/me");
   },
 
   logout() {
-    return request<void>("/api/auth/logout", { method: "POST" });
+    return request<void>("/auth/logout", { method: "POST" });
   },
 
   staffStats() {
-    return request<StaffStats>("/api/staff/stats");
+    return request<StaffStats>("/staff/stats");
   },
 
   staffOrders(scope: "active" | "today" | "all" = "active") {
     return request<{ orders: Order[] }>(
-      `/api/staff/orders${query({ scope })}`
+      `/staff/orders${query({ scope })}`
     );
   },
 
   updateOrderStatus(id: string, status: OrderStatus) {
-    return request<{ order: Order }>(`/api/staff/orders/${id}/status`, {
+    return request<{ order: Order }>(`/staff/orders/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     });
@@ -193,12 +262,12 @@ export const api = {
 
   staffCalls(scope: "open" | "all" = "open") {
     return request<{ calls: StaffCall[] }>(
-      `/api/staff/calls${query({ scope })}`
+      `/staff/calls${query({ scope })}`
     );
   },
 
   updateCall(id: string, status: "ACKNOWLEDGED" | "RESOLVED") {
-    return request<{ call: StaffCall }>(`/api/staff/calls/${id}`, {
+    return request<{ call: StaffCall }>(`/staff/calls/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     });
@@ -206,23 +275,23 @@ export const api = {
 
   staffBills(scope: "open" | "all" = "open") {
     return request<{ bills: Bill[] }>(
-      `/api/staff/bills${query({ scope })}`
+      `/staff/bills${query({ scope })}`
     );
   },
 
   settleBill(id: string) {
-    return request<{ bill: Bill }>(`/api/staff/bills/${id}/settle`, {
+    return request<{ bill: Bill }>(`/staff/bills/${id}/settle`, {
       method: "PATCH",
     });
   },
 
   staffMenu() {
-    return request<StaffMenuResponse>("/api/staff/menu");
+    return request<StaffMenuResponse>("/staff/menu");
   },
 
   staffFinancialReport(startDate: string, endDate: string) {
     const params = new URLSearchParams({ startDate, endDate });
-    return request<FinancialReport>(`/api/staff/finance?${params.toString()}`);
+    return request<FinancialReport>(`/staff/finance?${params.toString()}`);
   },
 
   createExpense(payload: {
@@ -230,21 +299,21 @@ export const api = {
     description: string;
     amountCents: number;
   }) {
-    return request<{ expense: FinancialExpense }>("/api/staff/expenses", {
+    return request<{ expense: FinancialExpense }>("/staff/expenses", {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
   deleteExpense(id: string) {
-    return request<void>(`/api/staff/expenses/${id}`, {
+    return request<void>(`/staff/expenses/${id}`, {
       method: "DELETE",
     });
   },
 
   createCategory(payload: CreateCategoryPayload) {
     return request<{ category: Category }>(
-      "/api/staff/menu/categories",
+      "/staff/menu/categories",
       {
         method: "POST",
         body: JSON.stringify(payload),
@@ -253,28 +322,28 @@ export const api = {
   },
 
   createMenuItem(payload: MenuItemPayload) {
-    return request<{ item: unknown }>("/api/staff/menu/items", {
+    return request<{ item: unknown }>("/staff/menu/items", {
       method: "POST",
       body: menuItemFormData(payload),
     });
   },
 
   updateMenuItem(id: string, payload: Partial<MenuItemPayload>) {
-    return request<{ item: unknown }>(`/api/staff/menu/items/${id}`, {
+    return request<{ item: unknown }>(`/staff/menu/items/${id}`, {
       method: "PATCH",
       body: menuItemFormData(payload),
     });
   },
 
   deleteMenuItem(id: string) {
-    return request<void>(`/api/staff/menu/items/${id}`, {
+    return request<void>(`/staff/menu/items/${id}`, {
       method: "DELETE",
     });
   },
 
   updateAvailability(id: string, available: boolean) {
     return request<{ item: unknown }>(
-      `/api/staff/menu/items/${id}/availability`,
+      `/staff/menu/items/${id}/availability`,
       {
         method: "PATCH",
         body: JSON.stringify({ available }),
@@ -283,18 +352,18 @@ export const api = {
   },
 
   staffTables() {
-    return request<{ tables: TableSummary[] }>("/api/staff/tables");
+    return request<{ tables: TableSummary[] }>("/staff/tables");
   },
 
   createTable(payload: { number: number; name?: string }) {
-    return request<{ table: TableSummary }>("/api/staff/tables", {
+    return request<{ table: TableSummary }>("/staff/tables", {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
 
   deleteTable(id: string) {
-    return request<void>(`/api/staff/tables/${id}`, {
+    return request<void>(`/staff/tables/${id}`, {
       method: "DELETE",
     });
   },

@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build -w client"
+  publish = "client/dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Public build-time value (not a secret). Keep it in sync with the Render API origin.
+  VITE_API_URL = "https://cafe-backend-kmoj.onrender.com"
+
+# SPA fallback: let React Router handle /admin, /table/1, etc.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
