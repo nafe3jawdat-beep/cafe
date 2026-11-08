@@ -22,6 +22,7 @@
     "db:check-integrity": "npm run db:check-integrity -w server",
     "db:test-integrity": "npm run db:test-integrity -w server",
     "admin:create": "npm run admin:create -w server",
+    "verify:api": "npm run verify:api -w server --",
     "tables:qr": "npm run tables:qr -w server",
     "setup": "npm install && npm run db:generate && npm run db:migrate && npm run db:seed",
     "dev:db": "npm run dev:db -w server"

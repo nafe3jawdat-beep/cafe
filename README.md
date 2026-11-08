@@ -163,24 +163,48 @@ Development seed credentials come from `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWO
 
 ## Configuration
 
-All server configuration lives in `server/.env`.
+Server configuration lives in `server/.env` (copy from `server/.env.example`).
+The frontend's optional build-time configuration lives in `client/.env` (copy
+from `client/.env.example`). Do not commit either `.env` file.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `NODE_ENV` | `development` | `development`, `test`, or `production` |
-| `PORT` | `4000` | API port |
-| `DATABASE_URL` | local PostgreSQL URL | Prisma connection string |
-| `JWT_SECRET` | placeholder | Session signing key; production requires at least 48 random characters |
+| `PORT` | `4000` | API port; Render provides this in production |
+| `DATABASE_URL` | Local Docker PostgreSQL URI | Prisma connection string; required. Use the provider's full Neon/Render URI in production |
+| `JWT_SECRET` | No secure default | Session signing key; required, at least 32 characters locally and 48 random characters in production |
 | `SESSION_TTL_HOURS` | `12` | Admin session lifetime |
 | `CLIENT_ORIGIN` | `http://localhost:5173` | Allowed browser origin for CORS, cookies, and Socket.io |
 | `COOKIE_SECURE` | `false` | Set `true` behind HTTPS |
 | `REQUIRE_TABLE_KEY` | `false` | Require the table's `?key=<qrToken>` on guest and socket requests |
-| `TRUST_PROXY_HOPS` | `1` | Number of reverse proxies; must be explicitly set in production |
+| `TRUST_PROXY_HOPS` | `1` | Compatibility/production validation setting; set to `1` on Render |
 | `RATE_LIMIT_PER_IP` | `60` | Per-minute order/service request cap per IP |
 | `CURRENCY` | `USD` | ISO currency code shown in the UI |
 | `TAX_RATE` | `0` | Decimal tax rate, e.g. `0.08` |
 | `SERVICE_CHARGE_RATE` | `0` | Decimal service charge, e.g. `0.10` |
 | `UPLOAD_DIR` | `uploads/` in the project root | Local directory for menu item images |
+| `SEED_ADMIN_EMAIL` | `admin@cafe.local` | Local development seed account; must be unset in production |
+| `SEED_ADMIN_PASSWORD` | No secure default | Local development seed password; set a unique password before seeding and leave unset in production |
+| `ADMIN_EMAIL` | Unset | Optional email for `npm run admin:create` |
+| `ADMIN_PASSWORD` | Unset | Optional password for `npm run admin:create`; hidden prompt is preferred |
+| `PGPORT` | `5432` | Optional port used only by the embedded `npm run dev:db` script |
+
+| Frontend variable | Default | Purpose |
+| --- | --- | --- |
+| `VITE_API_URL` | Empty | API origin used by Fetch, Socket.IO, and uploaded-image URLs. Empty uses same-origin URLs and the local Vite proxy. Set to the Render API origin in Netlify's build environment, without `/api` or a trailing slash. |
+
+`VITE_API_URL` is embedded into the frontend at build time and must never contain a secret. The frontend and backend do not have a separate Socket.IO URL; Socket.IO uses the same API origin.
+
+Local quick start:
+
+```powershell
+Copy-Item server/.env.example server/.env
+Copy-Item client/.env.example client/.env
+```
+
+Set `JWT_SECRET` to a generated local random secret and set `SEED_ADMIN_PASSWORD`
+before running `npm run db:seed`. The local PostgreSQL URI in the server example
+matches `docker-compose.yml`; start it with `docker compose up -d`.
 
 Money is stored as integer cents. Order totals are calculated on the server from the current menu prices; the browser cannot override prices.
 
@@ -242,7 +266,8 @@ Base URL: `http://localhost:4000`
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/health` | Health check |
+| `GET` | `/api/health` | Liveness check (does not touch the database) |
+| `GET` | `/api/health/db` | Readiness check: `SELECT 1` plus table/menu/open-order counts; `503` when the database is unreachable |
 | `GET` | `/api/public/tables/:number/menu?key=` | Table menu and pricing config |
 | `GET` | `/api/public/tables/:number/session?key=` | Table orders, open bill, active calls |
 | `POST` | `/api/public/orders` | Create an order |
@@ -301,6 +326,7 @@ All routes below require an `ADMIN` session.
 | `DELETE` | `/api/staff/menu/items/:id` | Delete a menu item |
 | `PATCH` | `/api/staff/menu/items/:id/availability` | Toggle item availability |
 | `GET` | `/api/staff/tables` | Tables with QR tokens and live counts |
+| `GET` | `/api/staff/debug/data` | Diagnostic snapshot: row counts plus sample tables, categories, items, and orders with relations |
 
 Example create-menu-item payload:
 
@@ -378,6 +404,7 @@ Run from the repository root:
 | `npm run db:migrate:dev` | Create a migration in development |
 | `npm run db:seed` | Seed demo data |
 | `npm run db:studio` | Open Prisma Studio |
+| `npm run verify:api` | Read-only smoke test of every API route, with a pass/fail summary |
 
 ## Testing
 
@@ -386,6 +413,15 @@ npm run typecheck
 npm test
 npm run build
 ```
+
+To verify a running API end to end (local or deployed) without creating orders:
+
+```bash
+# Credentials can also live in server/.env as ADMIN_EMAIL / ADMIN_PASSWORD.
+npm run verify:api -- --base https://your-api.onrender.com
+```
+
+The runner calls `/api/health`, `/api/health/db`, the public menu, login, `/api/auth/me`, and every admin `GET` route, printing a pass/warn/fail line per endpoint. It exits non-zero if any check fails. Set `TABLE_KEY` (or `--key`) so the public menu check can return `200` when `REQUIRE_TABLE_KEY=true`.
 
 Unit tests cover pricing/rounding and the order status state machine. A full manual smoke test:
 
@@ -413,9 +449,9 @@ Unit tests cover pricing/rounding and the order status state machine. A full man
    - A random `JWT_SECRET` at least 48 characters long
    - `COOKIE_SECURE=true` behind HTTPS
    - `REQUIRE_TABLE_KEY=true`
-   - The real `CLIENT_ORIGIN`
+   - `CLIENT_ORIGIN` set to the exact Netlify site origin (for example, `https://your-site.netlify.app`, with no path or trailing slash). Localhost is allowed only outside production.
    - A managed PostgreSQL `DATABASE_URL`
-   - `TRUST_PROXY_HOPS` set to the exact number of reverse proxies
+   - `TRUST_PROXY_HOPS=1` for Render's reverse proxy
    - Leave `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` unset
 
 3. Apply migrations and create the initial administrator:
